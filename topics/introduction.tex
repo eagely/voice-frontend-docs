@@ -1,0 +1,64 @@
+\renewcommand*\chapterpagestyle{scrheadings}
+\chapter{Introduction}
+This project is a frontend designed mainly to run on a Raspberry Pi with dedicated hardware,
+but other Linux/Unix-like systems are supported too.
+It is an extension to a voice assistant diploma thesis, focusing on providing a user-friendly
+interface to record audio from the user and forward it to the backend for processing.
+The project scope is as follows:
+\begin{itemize}
+    \item Efficient communication with the backend, with the goal of limiting response delays to 1 second.
+    \item Playing back responses from the backend, where the user has the option to receive the output either as text or as audio.
+    \item Allowing the user to choose between text input, push-to-talk, and voice activation modes.
+\end{itemize}
+
+\section{Background and Motivation}
+Voice assistants have steadily gained popularity in recent years, yet they are often perceived
+as minor enhancements rather than essential tools. This project aims to change that perception
+by providing a voice assistant frontend solution that can enhance users' workflows without being
+intrusive --- doing what other voice assistants are known to do but also offering more significant
+quality-of-life improvements like workspace management and speech-to-text input.
+
+\section{Technical Challenges}
+The development of this project is expected to encounter several technical challenges,
+including but not limited to:
+
+\begin{itemize}
+    \item \textbf{Voice Activation:} Implementing an effective voice activation system necessitates
+    continuous listening capabilities. This can be achieved either through a wake-word detection
+    mechanism or an advanced language model that can discern commands from regular speech.
+    Both approaches require careful consideration of computational efficiency and responsiveness.
+
+    \item \textbf{Security:} The ability to execute arbitrary commands poses a significant security
+    risk. It is imperative to implement strict access controls and validation mechanisms to prevent
+    unauthorized actions and protect the user from potential threats posed by malicious actors.
+
+    \item \textbf{User Experience:} Ensuring a seamless and intuitive user experience is vital for
+    the adoption of the voice assistant. This includes minimizing response times, providing clear
+    feedback, and designing an accessible and user-friendly interface.
+
+    \item \textbf{Low Latency:} Ensuring efficient communication with
+    the backend is essential to achieve the goal of response delays no longer than 1 second on a Raspberry Pi.
+    While most of the heavy lifting is done by the backend, communication protocols still need to be optimized
+    to ensure low latency.
+\end{itemize}
+
+\section{Choice of Framework}
+Several front-end frameworks were taken into consideration when deciding what to use for the project. These include:
+
+\begin{itemize}
+    \item Vue.js
+    \item Godot
+    \item Qt
+    \item SDL
+    \item Embedded Graphics
+\end{itemize}
+
+Initially, \texttt{Vue.js} and \texttt{Godot} were considered due to prior experience with these frameworks.
+However, given that the voice assistant frontend would run on a Raspberry Pi where performance is crucial
+for ensuring a smooth user experience, these options were ruled out.
+
+While low-level frameworks like \texttt{SDL} and \texttt{Embedded Graphics} were available,
+their steep learning curve and limited industry adoption made them impractical choices.
+
+Ultimately, \texttt{Qt} was selected for its robust performance, extensive industry usage,
+comprehensive documentation, and abundant learning resources.
