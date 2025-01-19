@@ -26,14 +26,15 @@ The development of this project is expected to encounter several technical chall
 \section{Choice of Framework}
 Several front-end frameworks were taken into consideration when deciding what to use for the project. These include:
 \begin{itemize}
-    \item Vue.js
-    \item Godot
-    \item Qt
-    \item SDL
-    \item Embedded Graphics
+\item Vue.js\footnote{Vue.js web frontend framework \cite{vuejs}}
+\item Godot\footnote{Godot game engine \cite{godot}}
+\item Qt\footnote{Qt framework \cite{qt}}
+\item SDL\footnote{Simple DirectMedia Layer library \cite{sdl}}
+\item Low-Level Graphics\footnote{Adafruit TFTLCT library \cite{adafruit-tftlcd}}
 \end{itemize}
 
 Initially, \texttt{Vue.js} and \texttt{Godot} were considered due to prior experience with these frameworks. However, given that the voice assistant frontend would run on a Raspberry Pi where performance is crucial for ensuring a smooth user experience, these options were ruled out. While low-level frameworks like \texttt{SDL} and \texttt{Embedded Graphics} were available, their steep learning curve and limited industry adoption made them impractical choices. Ultimately, \texttt{Qt} was selected for its robust performance, extensive industry usage, comprehensive documentation, and the fact that its the framework that is used by my desktop environment (KDE Plasma), so it would have seamless integration with my personal system.
+
 
 \section{System Architecture}
 The complete voice assistant consists of two parallel projects: this Qt-based frontend and a Rust backend being developed as an ongoing diploma thesis. The frontend serves as the user interface layer, providing efficient access to the backend's voice processing capabilities.
@@ -115,7 +116,9 @@ let response = match line.trim() {
 writeln!(writer, "{}", response)?;
 \end{minted}
 
-The implementation maintains recording state and provides error handling for both recording and transcription operations. Response messages are transmitted back to the frontend for user feedback or error display.
+The implementation maintains recording state and provides error handling for
+both recording and transcription operations. Response messages are transmitted
+back to the frontend for user feedback or error display.
 
 \subsection{Future Development}
 Several improvements are planned for the communication subsystem:
@@ -126,10 +129,18 @@ Several improvements are planned for the communication subsystem:
 \end{itemize}
 
 \section{Qt Framework}
-The Qt framework is a comprehensive toolkit designed for creating cross-platform applications with a focus on performance and user experience. It is particularly well-suited for projects that require a responsive and visually appealing interface, such as the voice assistant frontend described in this documentation. This section provides an overview of the key components and concepts of the Qt framework, including qmake, signals and slots, Qt Creator, and .ui files.
+The Qt framework is a comprehensive toolkit designed for creating cross-platform applications
+with a focus on performance and user experience.
+It is particularly well-suited for projects that require a responsive and visually appealing interface,
+such as the voice assistant frontend described in this documentation.
+This section provides an overview of the key components and concepts of the Qt framework,
+including qmake, signals and slots, Qt Creator, and .ui files.
 
 \subsection{qmake}
-qmake is the build system tool used by Qt to manage the compilation and linking of applications. It simplifies the build process by automatically generating Makefiles based on project files (.pro). A typical .pro file includes information about the source files, headers, and other resources needed for the project. Here is an example of a simple .pro file:
+qmake is the build system tool used by Qt to manage the compilation and linking of applications.
+It simplifies the build process by automatically generating Makefiles based on project files (.pro).
+A typical .pro file includes information about the source files, headers,
+and other resources needed for the project. Here is an example of a simple .pro file:
 
 \begin{verbatim}
 TEMPLATE = app
@@ -137,10 +148,16 @@ TARGET = myapp
 QT += core gui
 \end{verbatim}
 
-The .pro file specifies that the project is an application (TEMPLATE = app), the target executable is named "myapp", and it uses the Qt core and GUI modules. Additional elements like source files, headers, and forms can be specified in similar fashion.
+The .pro file specifies that the project is an application (TEMPLATE = app),
+the target executable is named "myapp", and it uses the Qt core and GUI modules.
+Additional elements like source files, headers, and forms can be specified in similar fashion.
 
 \subsection{Signals and Slots}
-One of the most powerful features of Qt is its signals and slots mechanism, which facilitates communication between objects. Signals are emitted when a particular event occurs, and slots are functions that respond to these signals. This mechanism allows for a flexible and decoupled design.
+One of the most powerful features of Qt is its signals and slots mechanism,
+which facilitates communication between objects.
+Signals are emitted when a particular event occurs,
+and slots are functions that respond to these signals.
+This mechanism allows for a flexible and decoupled design.
 
 The following example demonstrates connecting a button's click signal to a label's text update slot:
 
@@ -148,14 +165,11 @@ The following example demonstrates connecting a button's click signal to a label
 connect(button, &QPushButton::clicked, label, &QLabel::setText);
 \end{verbatim}
 
-In this example, the QPushButton's clicked signal is connected to the QLabel's setText slot. When the button is clicked, the label's text is updated accordingly.
+In this example, the QPushButton's clicked signal is connected to the QLabel's setText slot.
+When the button is clicked, the label's text is updated accordingly.
 
 \subsection{Qt Creator and .ui Files}
-Qt Creator is an integrated development environment specifically designed for Qt development. It provides comprehensive tools for code editing, debugging, and UI design. The integrated UI editor allows developers to create and arrange widgets using a visual interface, generating .ui files that represent the UI layout in XML format.
-
-These .ui files can be integrated into applications using the uic (User Interface Compiler) tool, which converts the .ui files into C++ code during the build process. This generated code creates and configures the UI elements exactly as designed in Qt Creator's visual editor.
-
-\subsection{Layouts and Widgets}
-Qt provides a wide range of widgets for building user interfaces, including buttons, labels, text fields, and more. These widgets can be arranged using layout managers, which ensure that the UI elements are positioned and resized correctly.
-
-The framework includes several types of layout managers: QHBoxLayout, QVBoxLayout, QGridLayout, and QFormLayout. Each layout manager arranges widgets in a specific way. QHBoxLayout arranges widgets horizontally, while QVBoxLayout arranges them vertically.
+Qt Creator is an integrated development environment specifically designed for Qt development.
+It provides comprehensive tools for code editing, debugging, and UI design.
+The integrated UI editor allows developers to create and arrange widgets using a visual interface,
+generating .ui files that represent the UI layout in XML format.
