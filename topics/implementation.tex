@@ -1,0 +1,27 @@
+\renewcommand*\chapterpagestyle{scrheadings}
+\chapter{Implementation and Issues}
+
+\section{Spring Boot Prototype}
+\subsection{Backend implementatin}
+The backend service was initially implemented in Kotlin using Spring Boot \footnote{The Spring Framework \cite{spring}},
+a Java-based framework that provides core infrastructure support for web applications.
+The service exposed a prototype REST endpoint at http://localhost:8080/process,
+which accepted textual input as a preliminary alternative to audio processing. 
+The endpoint implemented pattern matching to route weather-related queries to a weather service,
+while other queries were processed through the GPT-4 language model.
+
+\subsection{HTTP client in Qt}
+The initial prototype consisted of a minimal user interface
+implementing three basic components arranged vertically:
+a QLineEdit widget for text input,
+a QPushButton for submission,
+and a QLabel to display the server's response.
+The button's \texttt{clicked()} signal was connected to a slot
+handling the network communication.
+When the submit buton was clicked, the application sent a POST request
+to \texttt{http://localhost:8080/process} containing the user's input as plain text,
+and asynchronously processed the server's response through Qt's signal-slot mechanism,
+updating the label component to display results or errors.
+This HTTP-based communication was later replaced with TCP sockets
+to accommodate the backend's transition from REST endpoints,
+setting the foundation for the eventual audio processing implementation.
