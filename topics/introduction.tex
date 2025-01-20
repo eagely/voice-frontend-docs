@@ -82,51 +82,7 @@ The backend system, currently under development, comprises several processing st
 
 The modular architecture enables flexible deployment configurations. Users can choose between local processing for privacy-conscious applications or cloud-based processing for enhanced capabilities, with the frontend adapting seamlessly to either choice.
 
-\section{Communication}
-The communication between frontend and backend components is implemented through TCP sockets, providing reliable data transfer while maintaining low latency required for real-time voice processing.
 
-\subsection{Socket Architecture}
-The backend establishes a local TCP socket bound to port 8080, acting as a server for incoming client connections. Current implementation is limited to single-client operation, though work is underway to implement asynchronous client handling.
-
-The communication protocol implements a simple command-response pattern, where the frontend sends commands and receives either processing results or error messages. Two primary commands are supported:
-\begin{itemize}
-    \item \texttt{START\_RECORDING}: Initiates audio capture
-    \item \texttt{STOP\_RECORDING}: Terminates capture and processes the audio
-\end{itemize}
-
-\subsection{Implementation}
-The backend command handler demonstrates the core logic:
-
-\begin{minted}{rust}
-let response = match line.trim() {
-    "START_RECORDING" => {
-        self.recorder.start()?;
-        recording_active = true;
-        "Recording started.".to_string()
-    }
-    "STOP_RECORDING" if recording_active => {
-        let audio = self.recorder.stop()?;
-        recording_active = false;
-        self.transcriber.transcribe(&audio).await?
-    }
-    "STOP_RECORDING" => "No recording in progress.".to_string(),
-    _ => "Unknown command.".to_string(),
-};
-
-writeln!(writer, "{}", response)?;
-\end{minted}
-
-The implementation maintains recording state and provides error handling for
-both recording and transcription operations. Response messages are transmitted
-back to the frontend for user feedback or error display.
-
-\subsection{Future Development}
-Several improvements are planned for the communication subsystem:
-\begin{itemize}
-    \item Asynchronous client handling
-    \item Extended command set
-    \item Enhanced error recovery mechanisms
-\end{itemize}
 
 \section{Qt Framework}
 The Qt framework is a comprehensive toolkit designed for creating cross-platform applications
