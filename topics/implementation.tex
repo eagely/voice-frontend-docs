@@ -111,3 +111,14 @@ if (socket->state() == QTcpSocket::ConnectedState)
 The backend implementation maintains recording state and provides error handling for
 both recording, transcription, as well as processing operations. Response messages are transmitted
 back to the frontend for user feedback or error display.
+\section{Raspberry Pi Integration}
+\subsection{Operating System Selection}
+Alpine Linux proved to be the best choice for running
+the system on Raspberry Pi hardware. Its minimal design and
+stripped-down core components made it ideal for our embedded
+application. By using musl libc and BusyBox instead of traditional
+tools, Alpine runs with much lower RAM and storage overhead
+than standard Linux distributions. This efficiency was critical since
+real-time audio processing and language models already tax the Pi's
+resources. The simple apk package manager made installing dependencies straightforward,
+while keeping the system lean.
