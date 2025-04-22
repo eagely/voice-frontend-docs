@@ -41,7 +41,7 @@ Several frontend frameworks were considered initially. These include:
 Initially, `Vue.js` and `Godot` were considered due to prior experience with them.
 However, given that the voice assistant would run on a Raspberry Pi
 where performance is crucial for ensuring a smooth user experience,these options were ruled out.
-While something akin to `SDL` or more low-level graphics were an option, their steep learning curve made them impractical choices.
+While something akin to `SDL` or more low-level graphics was an option, their steep learning curve made them impractical choices.
 Ultimately, `Qt` was selected for its robust performance, extensive industry adoption, and comprehensive documentation.
 
 == Qt Framework

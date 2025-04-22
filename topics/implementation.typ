@@ -9,7 +9,7 @@ The backend was initially developed using Spring Boot; the prototype featured a 
 ```kotlin
 @PostMapping("/process")
 fun process(@RequestBody content: String): Mono<ResponseEntity<String>> {
-    return parsingService.parse(content).map { ResponseEntity.ok(it) }
+  return parsingService.parse(content).map { ResponseEntity.ok(it) }
 }
 ```
 
@@ -18,15 +18,15 @@ A pattern‐matching parser was implemented using Kotlin’s `when` statement, w
 
 ```kotlin
 when {
-    "units" in input -> unitsService.getUnitsInfo()
-    "weather" in input -> {
-        geocodingService.getLocation(input).map { (town, lat, lon) ->
-            weatherService.getForecast(lat, lon)
-        }
+  "units" in input -> unitsService.getUnitsInfo()
+  "weather" in input -> {
+    geocodingService.getLocation(input).map { (town, lat, lon) ->
+      weatherService.getForecast(lat, lon)
     }
-    else -> openAIService.getCompletion(input).map {
-        it.choices.first().message.content!!
-    }
+  }
+  else -> openAIService.getCompletion(input).map {
+    it.choices.first().message.content!!
+  }
 }
 ```
 
@@ -37,7 +37,7 @@ It had three services implemented, those being:
 - Open AI Service: Queries an LLM from OpenAI if the parser does not find the pattern of any other service  
 
 
-=== HTTP client in Qt
+== HTTP Client in Qt
 The initial prototype consisted of a minimal user interface
 implementing three basic components arranged vertically:
 a QLineEdit widget for text input,
@@ -54,6 +54,68 @@ to accommodate the backend's transition from REST endpoints,
 setting the foundation for the eventual audio processing implementation.
 
 #pagebreak()
+
+== Rewriting it in Rust
+
+Because Kotlin runs on the Java Virtual Machine#footnote[Java Virtual Machine @jvm],
+it does not offer particularly good performance.
+Since the plan was to run the voice assistant on a Raspberry Pi,
+a decision was made early in the development of the project to abandon the current backend and rewrite it in Rust ---
+a significantly more performant alternative that does not compromise on ergonomics.
+Rust compiles to native machine code and is therefore nearly as fast as C or C++,
+only with slow compilation times and some overhead introduced by the borrow checker ---
+both of which can be disregarded when compared to the limitations of the JVM.
+
+Rust takes an innovative approach to systems programming
+by combining low‑level control with modern language features that do not compromise on ergonomics.
+It uses errors as values via the `Result` enum:
+
+```rust
+enum Result<T, E> {
+  Ok(T),
+  Err(E),
+}
+```
+
+And by utilizing its powerful pattern‑matching capabilities,
+this becomes an excellent way to avoid almost all runtime errors in a simple and elegant fashion.
+
+Rust features a powerful type system with algebraic data types.
+Its structs (product types) are similar to classes in object‑oriented languages,
+while its enums (sum types) enable expressive pattern matching.
+Structs and enums in Rust can hold multiple values --- including named fields --- far beyond primitive types. For example:
+
+```rust
+enum Foo {
+  Bar(f64, f64, f64),
+  Baz(String, String, String),
+  Qux {
+    quux: f64,
+    quuz: f64,
+  },
+}
+
+struct Bar {
+  Baz: f64,
+  Qux: (f64, String, i128),
+}
+```
+
+These data types shine in `match` and `if let` statements for powerful, ergonomic pattern matching.
+
+Interfaces are ubiquitous in many languages ---
+Rust replaces them with traits.
+Traits let you specify that a struct implements certain behavior,
+and you can write `impl Trait for Struct { … }` to wire everything together.
+This approach decouples implementation from usage more flexibly than traditional interfaces.
+
+Another elevator pitch for Rust is its focus on memory safety via the borrow checker.
+Ownership and borrowing rules ensure that variables have a single owner,
+can be immutably borrowed many times or mutably borrowed once, and that all borrows respect lifetimes.
+At first the borrow checker can feel restrictive,
+but it ultimately guarantees memory safety and prevents data races (unless you opt into `unsafe` blocks).
+Low‑level operations --- like writing to a hardware register --- still require `unsafe`, but the vast majority of code remains completely safe.
+
 == Recording Audio
 === QAudioRecorder
 The initial audio recording implementation attempted to utilize Qt's QAudioRecorder class,
@@ -86,7 +148,7 @@ CPAL emerged as a straightforward solution for implementing the audio capture ba
 The implementation configures an input stream with standard parameters
 (16kHz sample rate, mono channel, 16-bit samples) and collects audio samples
 in a buffer. When a client connects and requests recording, the backend
-starts capturing audio until receiving a stop signal. The recorded audio
+starts capturing audio until it receives a stop signal. The recorded audio
 data is then immediately passed to the speech recognition pipeline.
 
 Moving the recording functionality to the backend proved to be the right choice.
@@ -97,8 +159,8 @@ while the backend manages all the complexities of audio capture and processing.
 
 == Communication
 TCP #footnote[Transmission Control Protocol @tcp] sockets handle the communication between frontend and backend components.
-While HTTP was sufficient for the text-only prototype, the future switch to real-time
-voice processing to facilitate voice activation, as well as the goal to get response times
+While HTTP was sufficient for the text-only prototype,
+the future implementation of audio output streaming and the goal to get response times
 under 1 second required faster data transfer. TCP sockets offer increased speed compared to
 HTTP, as well as ease of use, especially in Qt, as shown later.
 
@@ -124,13 +186,11 @@ TCP communication using `QTcpSocket` is very easy, with two main commands:
 #block(breakable: false)[
 ```cpp
 if (socket->state() == QTcpSocket::ConnectedState)
-    socket->write("message");
+  socket->write("message");
 ```
 ]
 
-The backend implementation maintains recording state and provides error handling for
-both recording, transcription, as well as processing operations. Response messages are transmitted
-back to the frontend for user feedback or error display.
+Similarly, `socket->readAll()` can be used to read data.
 
 == Layout and Design
 === Window Dimensions
@@ -155,8 +215,8 @@ A settings menu was implemented to facilitate user configuration.
 Navigation between the main interface and settings was accomplished through
 a hamburger button and back arrow positioned in the top left corner.
 
-The interface implementation produced two primary views, as illustrated in Figure @mainwindow_january
-and Figure @settings_january.
+The interface implementation produced two primary views, as illustrated in @mainwindow_january
+and @settings_january.
 
 Two notable aspects of the implementation were:
 - The interface appearance was determined by the selected Qt theme, with Breeze Dark utilized in the development environment
@@ -188,6 +248,197 @@ real-time audio processing and language models already tax the Pi's
 resources. The simple apk package manager made installing dependencies straightforward,
 while keeping the system lean.
 
+== Protocol Updates
+Raw TCP made it difficult to separate text from binary data, requiring too much extra logic.
+To simplify things, the setup was changed to use WebSockets over TCP.
+WebSockets include built-in message types, which makes it easier for both sides to tell whether data is text, binary, or a control message.
+Qt uses `QWebSocket` for WebSocket communication and it is almost a drop-in replacement for `QTcpSocket`, with only minor changes necessary.
+
+== Backend for Frontend
+To manage UI components and to communicate with the server, Qt usually requires a C++ backend;
+this backend is not the actual backend of the application, it is the backend of the frontend,
+also called `Backend for Frontend`, or `BFF`.
+The BFF manages UI logic and communication with the server;
+the file structure of the BFF was as follows:
+
+```text
+include/
+├── audioplayer.h
+├── backendclient.h
+├── mainwidget.h
+├── mainwindow.h
+├── settingswidget.h
+└── streamingbuffer.h
+
+src/
+├── audioplayer.cpp
+├── backendclient.cpp
+├── mainwidget.cpp
+├── mainwindow.cpp
+├── settingswidget.cpp
+└── streamingbuffer.cpp
+
+gui/
+├── mainwidget.ui
+├── mainwindow.ui
+└── settingswidget.ui
+
+main.cpp
+```
+
+=== Main Window
+The `mainwindow.h` and `mainwindow.cpp` files contain logic for instantiating the app
+and for switching between the main widget and the settings widget.
+
+=== Main Widget
+The `mainwidget.h` and `mainwidget.cpp` files provide the logic implementation for the main widget
+that the user sees when they first open the app; it contains the record button, the toggle wake word button,
+and the text output field; here, functions of the backend client are called to communicate to the server
+when the record button and the toggle wake word buttons are pressed.
+
+=== Settings Widget
+The `settingswidget.h` and `settingswidget.cpp` files provide the logic for the settings widget,
+calling functions from the backend client to configure settings on the server when the user modifies a setting. 
+
+=== Backend Client
+The `backendclient.h` and `backendclient.cpp` files provide the logic for the heart of the application:
+Communication between this frontend and the server; it defines multiple functions, signals and slots,
+as seen below:
+
+```cpp
+#pragma once
+#include <QObject>
+#include <QWebSocket>
+
+class BackendClient : public QObject
+{
+  Q_OBJECT
+
+public:
+  explicit BackendClient(const QString &host, quint16 port, QObject *parent = nullptr);
+  void cancel();
+  void config(const QString &element);
+  void startRecording();
+  void stopRecording();
+
+signals:
+  void binaryMessageReceived(const QByteArray &message);
+  void textMessageReceived(const QString &message);
+
+private slots:
+  void onConnected();
+  void onBinaryMessageReceived(const QByteArray &messge);
+  void onTextMessageReceived(const QString &message);
+  void onBytesWritten(qint64 bytes);
+
+private:
+  void sendMessage(const QString &message);
+
+  QWebSocket *socket;
+};
+```
+
+Some of these are self-explanatory: `startRecording()` and `stopRecording()` simply send messages to the server via `sendMessage()`
+to either start or stop the recording. The `cancel()` function cancels the recording, without processing it, however,
+no button was ever implemented for it, so it is effectively dead code.
+
+The signals `binaryMessageReceived()`, and `textMessageReceived()` were connected to equivalent signals
+in `QWebSocket` and to their corresponding slots, `onBinaryMessageReceived()`, and `onTextMessageReceived()`.
+
+These trigger when the server sends a message, be that text or binary:
+
+- If the message is text, it is printed to the text view in the main widget, for the user to see.
+- If the message is binary, it is assumed to be WAV audio (as that is the only binary message that the server can send) and passed on to `AudioPlayer`.
+
+=== Audio Player
+The `audioplayer.h` and `audioplayer.cpp` are the core of audio playback. If audio is selected (instead of text),
+then the backend client will pass on a WAV `StreamingBuffer` to the audio player,
+and the audio player will then play what is available inside the `StreamingBuffer`.
+Audio is added by the backend client using the `appendAudioData()` function:
+
+```cpp
+bool AudioPlayer::appendAudioData(const QByteArray &audioData)
+{
+  if (audioData.isEmpty()) {
+    qWarning() << "Received empty audio data!";
+    return false;
+  }
+  m_streamBuffer->appendData(audioData);
+  play();
+  return true;
+}
+```
+
+=== Streaming Buffer
+As there is no default Qt implementation for a buffer that supports arbitrary data appending while being read from with correct position marking,
+a new buffer had to be implemented: `StreamingBuffer` in `streamingbuffer.h` and `streamingbuffer.cpp`;
+it defines the following member variables:
+
+```cpp
+  mutable QMutex m_mutex;
+  QByteArray m_data;
+  qint64 m_readPos;
+```
+
+A `QMutex` for concurrent access of the underlying data,
+a `QByteArray` for storing the data,
+and a `qint64` for the current position that is being read from.
+
+The `StreamingBuffer` allows appending of data at an arbitrary point, by locking the mutex and appending the data and emitting `readyRead()` after.
+```cpp
+void StreamingBuffer::appendData(const QByteArray &data)
+{
+  qDebug() << "Appending data of length" << data.length();
+  QMutexLocker locker(&m_mutex);
+  m_data.append(data);
+  emit readyRead();
+}
+```
+
+Reading is done via `readData()`, which locks the mutex, copies the audio data to a buffer and updates the current read index:
+
+```cpp
+qint64 StreamingBuffer::readData(char *data, qint64 maxSize)
+{
+  QMutexLocker locker(&m_mutex);
+  if (m_readPos >= m_data.size())
+    return 0;
+  qint64 bytesToRead = qMin(maxSize, static_cast<qint64>(m_data.size() - m_readPos));
+  memcpy(data, m_data.constData() + m_readPos, bytesToRead);
+  m_readPos += bytesToRead;
+  return bytesToRead;
+}
+```
+
+Interestingly, a Qt buffer (`QIODevice`) implementation requires a `bool atEnd()` function to be implemented,
+but since the only way to know if more data is coming is through a marker at the end, and since that would require more unnecessary overhead,
+the `atEnd()` function simply always returns `false`.
+```cpp
+bool StreamingBuffer::atEnd() const
+{
+    // Even if temporarily no data is available, more data might be appended later.
+    // Return false to indicate the stream is not ended.
+    return false;
+}
+```
+
+=== main.cpp
+`main.cpp` initializes the application, the main window, the window size, and executes the application:
+
+```cpp
+#include <QApplication>
+#include <src/core/mainwindow.h>
+
+int main(int argc, char *argv[])
+{
+  QApplication a(argc, argv);
+  MainWindow w;
+  w.setMinimumSize(400, 600);
+  w.show();
+  return a.exec();
+}
+```
+
 == UI Redesign and Migration to QML
 Up until now, the user interface was built using the `Design` window in Qt Creator,
 a visual editor for the XML-based `.ui` file format used with Qt Widgets.
@@ -195,7 +446,7 @@ After setting up the main window and a basic version of the settings window,
 it became clear that creating a visually appealing interface would be challenging,
 mainly due to the outdated and limited nature of the `.ui` designer.
 Building something that takes minutes in QML would take hours using `.ui` files,
-so switching to QML seemed like the better option
+so switching to QML seemed like the better option.
 QML offers a more modern approach, with a CSS-like syntax and support for inline JavaScript,
 making it easier to write and maintain programmatically.
 The backend, meanwhile, stayed largely the same and continued to use C++.
@@ -220,6 +471,10 @@ especially when working with an unfamiliar language.
 This often leads to creating a UI, realizing it doesn’t look right, then discarding it,
 resulting in wasted time on elements that won’t be part of the final design.
 
+== Window Dimensions
+At this point, a display had been purchased that would end up being used for the frontend,
+and its dimensions were `1024x600`, so from now on, all windows will match that size.
+
 === Main Window
 To avoid this, the layout of the main window was initially prototyped in Figma,
 a design tool known for its ease of use and effectiveness in creating UI references.
@@ -239,7 +494,7 @@ such that with minimal QML styling, it would be production-ready.
 This is an important point to consider when "predesigning" UI with Figma: The settings window is so simple that making a reference design
 would be of no use and would only waste time.
 
-This decision proved to be the correct, showing that not every aspect requires extensive planning.
+This decision proved to be correct, showing that not every aspect requires extensive planning.
 Sometimes, the implementation is simple enough to just proceed with it without doing extra work.
 
 == QML Design
@@ -506,8 +761,8 @@ ScrollView {
 ```
 ]
 
-The `onTextMessageReceived()` slot from the backend, which is connected to the `textMessageReceived` signal,
-was connected to the function below. This function updates the text in the log view and makes it visible.
+The C++ backend emits a `textMessageReceived` signal, which was connected in QML to the function below.
+This function updates the text in the log view and makes it visible.
 
 #block(breakable: false)[
 ```qml
@@ -524,7 +779,7 @@ The settings menu needed to have multiple categories each with:
 - Potentially some text inputs for things like base URL or language model selection
 
 === Radio Buttons
-Radio Buttons themself are fairly straightforward, they use a QML `Radio Button`,
+Radio Buttons themselves are fairly straightforward, they use a QML `Radio Button`,
 with the outer circle and the selection dot defined as `Rectangle` components with radii of `width / 2`
 
 #block(breakable: false)[
@@ -596,8 +851,8 @@ SettingsRadioButtonGroup {
 
 The `configKey` property is defined by the server, and is formatted as `table.key` from the TOML configuration file that the server uses.
 Not all fields from the server configuration have been included in the settings menu,
-such as `recording.porcupine_sensitiviy` or the entire weather configuration, as to not clutter the ui
---- configuring the porcupine wake word detection sensitivity is unneccessary, as the default just works,
+such as `recording.porcupine_sensitivity` or the entire weather configuration, as to avoid cluttering the ui
+--- configuring the porcupine wake word detection sensitivity is unnecessary, as the default just works,
 and putting the weather configuration in the settings menu would not be productive, as the only reason someone would edit the weather config
 is if they are self-hosting the weather config, and in that case, they will be capable of editing the config and other users will not be confused
 by the weather API base url being a configurable field.
