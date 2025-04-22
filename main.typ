@@ -42,6 +42,10 @@
 
 #pagebreak()
 
+#include "topics/planning.typ"
+
+#pagebreak()
+
 #include "topics/implementation.typ"
 
 #pagebreak()

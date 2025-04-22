@@ -3,13 +3,39 @@
 = Implementation and Issues
 
 == Spring Boot Prototype
-=== Backend implementation
-The backend service was initially implemented in Kotlin using Spring Boot #footnote[The Spring Framework @spring],
-a Java-based framework that provides core infrastructure support for web applications.
-The service exposed a prototype REST endpoint at http://localhost:8080/process,
-which accepted textual input as a preliminary alternative to audio processing.
-The endpoint implemented pattern matching to route weather-related queries to a weather service,
-while other queries were processed through the GPT-4 language model.
+
+The backend was initially developed using Spring Boot; the prototype featured a REST endpoint, which would await `POST` requests and was accessible at \`http://localhost:8080/process\`. Shown below is the Spring mapping of this endpoint:
+
+```kotlin
+@PostMapping("/process")
+fun process(@RequestBody content: String): Mono<ResponseEntity<String>> {
+    return parsingService.parse(content).map { ResponseEntity.ok(it) }
+}
+```
+
+It would accept an HTTP `POST` request with a string in its body, which was the input sent by the user. This was the first implementation, and it did not support audio yet, in order to keep it simple and iterate quickly.
+A pattern‐matching parser was implemented using Kotlin’s `when` statement, which is similar to a switch–case in other languages. Below is a demonstrative, simplified version of this parser:
+
+```kotlin
+when {
+    "units" in input -> unitsService.getUnitsInfo()
+    "weather" in input -> {
+        geocodingService.getLocation(input).map { (town, lat, lon) ->
+            weatherService.getForecast(lat, lon)
+        }
+    }
+    else -> openAIService.getCompletion(input).map {
+        it.choices.first().message.content!!
+    }
+}
+```
+
+It had three services implemented, those being:
+
+- Units Service: Returns the units that are in use (metric or imperial)  
+- Weather Service: Queries the OpenWeatherMap API using coordinates from the OpenStreetMap Nominatim API  
+- Open AI Service: Queries an LLM from OpenAI if the parser does not find the pattern of any other service  
+
 
 === HTTP client in Qt
 The initial prototype consisted of a minimal user interface
@@ -95,10 +121,12 @@ allowing you to potentially configure settings while waiting for the request to 
 still was to return a response in under 1 second.
 TCP communication using `QTcpSocket` is very easy, with two main commands:
 
+#block(breakable: false)[
 ```cpp
 if (socket->state() == QTcpSocket::ConnectedState)
     socket->write("message");
 ```
+]
 
 The backend implementation maintains recording state and provides error handling for
 both recording, transcription, as well as processing operations. Response messages are transmitted
@@ -134,15 +162,19 @@ Two notable aspects of the implementation were:
 - The interface appearance was determined by the selected Qt theme, with Breeze Dark utilized in the development environment
 - The settings interface was designed with a vertical spacer to emulate planned future expansion of configuration options
 
-#figure(
-  image("../assets/mainwindow_january.png", width: 80%),
-  caption: [Main Window of the Qt application]
-) <mainwindow_january>
+#columns(
+  2
+)[
+  #figure(
+    image("../assets/mainwindow_january.png", width: 100%),
+    caption: [Main Window]
+  ) <mainwindow_january>
 
-#figure(
-  image("../assets/settings_january.png", width: 80%),
-  caption: [Settings Window of the Qt application]
-) <settings_january>
+  #figure(
+    image("../assets/settings_january.png", width: 100%),
+    caption: [Settings Window]
+  ) <settings_january>
+]
 
 == Raspberry Pi Integration
 === Operating System Selection
@@ -155,3 +187,499 @@ than standard Linux distributions. This efficiency was critical since
 real-time audio processing and language models already tax the Pi's
 resources. The simple apk package manager made installing dependencies straightforward,
 while keeping the system lean.
+
+== UI Redesign and Migration to QML
+Up until now, the user interface was built using the `Design` window in Qt Creator,
+a visual editor for the XML-based `.ui` file format used with Qt Widgets.
+After setting up the main window and a basic version of the settings window,
+it became clear that creating a visually appealing interface would be challenging,
+mainly due to the outdated and limited nature of the `.ui` designer.
+Building something that takes minutes in QML would take hours using `.ui` files,
+so switching to QML seemed like the better option
+QML offers a more modern approach, with a CSS-like syntax and support for inline JavaScript,
+making it easier to write and maintain programmatically.
+The backend, meanwhile, stayed largely the same and continued to use C++.
+
+To support the migration, the project structure was reorganized.
+Instead of the previous `src/core` and `src/gui` directories,
+a new layout was introduced with separate `backend` and `qml` directories.
+The existing `.ui` files were moved into the `qml` directory
+to serve as references during the transition.
+An initial QML version of each `.ui` file was created,
+focused solely on replicating functionality.
+At this stage, no specific attention was given to design or styling—
+the priority was to ensure that the interface behaved as expected using QML.
+Once the basic structure was in place,
+each view was gradually refactored into smaller, reusable components.
+This made the codebase easier to navigate and maintain,
+and laid the groundwork for later visual improvements.
+
+== Design Prototype
+Experience with previous projects showed that designing a UI without any reference material is inefficient,
+especially when working with an unfamiliar language.
+This often leads to creating a UI, realizing it doesn’t look right, then discarding it,
+resulting in wasted time on elements that won’t be part of the final design.
+
+=== Main Window
+To avoid this, the layout of the main window was initially prototyped in Figma,
+a design tool known for its ease of use and effectiveness in creating UI references.
+Figma’s clean and simple interface makes it easy to create a layout quickly,
+with the option to gradually refine it by adding details such as colors, shadows, and animations.
+
+#figure(
+  image("../assets/figma.png", width: 100%),
+  caption: [Final Figma design]
+) <figma>
+
+The UI is clean and intuitive, featuring a record button, a toggle switch for the wake word, and a gear icon for the settings menu.
+
+=== Settings Menu
+A decision was made not to redesign the settings menu in Figma; the original design from the `.ui` file was already visually appealing enough,
+such that with minimal QML styling, it would be production-ready.
+This is an important point to consider when "predesigning" UI with Figma: The settings window is so simple that making a reference design
+would be of no use and would only waste time.
+
+This decision proved to be the correct, showing that not every aspect requires extensive planning.
+Sometimes, the implementation is simple enough to just proceed with it without doing extra work.
+
+== QML Design
+Qt Quick is a modern cross-platform UI framework which uses Qt Meta-object Language (QML) #footnote[Qt Meta-object Language @qml] for UI design.
+QML is a declarative language with syntax similar to CSS, and it supports inline JavaScript for handling logic and interaction.
+Below is a small example snippet:
+
+#block(breakable: false)[
+```qml
+Rectangle {
+  width: 100
+  height: 100
+  color: mouseArea.pressed ? "orange" : "lightgray"
+
+  MouseArea {
+    id: mouseArea
+    anchors.fill: parent
+    onClicked: {
+      console.log("Rectangle clicked at:", mouse.x, mouse.y);
+    }
+  }
+}
+```
+]
+
+This snippet demonstrates how QML is used to build user interfaces in a declarative way.
+Instead of writing code that manually creates and updates UI elements,
+the structure and behavior are described directly in terms of what the interface should look like and how it should respond to interaction.
+
+A Rectangle is defined with a fixed size and a color property that updates automatically based on the state of the MouseArea.
+When the mouse is pressed, the color changes to orange; otherwise, it remains light gray.
+The logic for user interaction is embedded directly using inline JavaScript inside the MouseArea,
+which handles click events and logs the mouse position.
+
+=== File structure
+QML works great with a modular structure, as it allows you to define your own components and work with them just as you would with built-in components.
+It was clear that a modular component structure would be the most beneficial,
+especially with the settings menu having lots of repeated components.
+
+The following organized structure was created:
+
+
+#block(breakable: false)[
+```text
+qml/
+├── components/
+│   ├── ActionButton.qml
+│   ├── RecordButton.qml
+│   ├── SettingsButton.qml
+│   ├── SettingsRadioButton.qml
+│   ├── SettingsRadioButtonGroup.qml
+│   ├── SettingsTextInput.qml
+│   └── WakeWordToggle.qml
+├── Main.qml
+└── Settings.qml
+```
+]
+
+=== Main Window
+The main window is composed of multiple subcomponents:
+- Settings button (gear icon)
+- Recording button (blue circle with a microphone icon)
+- Wake word toggle switch
+- Log view (Text area at the bottom of the screen)
+
+They are implemented using their respective subcomponents and sometimes a wrapper container for easier positioning.
+
+=== Record Button
+The record button is implemented using a QML Button with a `FontAwesome` microphone icon
+and a Rectangle background, with a radius of `width / 2`,
+effectively turning it into a circle:
+
+#block(breakable: false)[
+```qml
+Button {
+  contentItem: Text {
+    text: "\uf130"
+    font.family: "FontAwesome"
+  }
+  background: Rectangle {
+    radius: width / 2
+  }
+}
+```
+]
+
+The color is a vertical linear gradient between two shades of blue:
+
+#block(breakable: false)[
+```qml
+gradient: Gradient {
+    GradientStop { position: 0.0; color: "#007bff" }
+    GradientStop { position: 1.0; color: "#0056b3" }
+}
+```
+]
+
+Additionally, there is a small drop shadow on the bottom of the button to emphasize it more,
+it is created using a layer on the background rectangle:
+
+#block(breakable: false)[
+```qml
+layer.enabled: true
+layer.effect: DropShadow {
+    horizontalOffset: 0
+    verticalOffset: 6
+    radius: 15
+    samples: 15
+    color: Qt.rgba(0, 123, 255, 0.3)
+}
+```
+]
+
+Connecting the button to the backend is made really simple in QML,
+using an `onClicked` event it can simply call the backend `startRecording()` and `stopRecording()` functions:
+
+#block(breakable: false)[
+```qml
+onClicked: {
+    recording = !recording
+    if(recording) backend.startRecording()
+    else backend.stopRecording()
+}
+```
+]
+
+For these functions to be invokable from QML, they need to be annotated with `Q_INVOKABLE` on the backend:
+
+#block(breakable: false)[
+```qml
+Q_INVOKABLE void startRecording();
+Q_INVOKABLE void stopRecording();
+```
+]
+
+=== Wake Word Toggle
+The wake word toggle is built with a Qt Quick Controls Switch for the on/off behavior.
+The track and the knob are each drawn as a Rectangle, with radii of `width / 2`.
+The knob’s x position is bound so that when checked it sits 4 px from the right edge, and when unchecked it sits 4 px from the left.
+
+#block(breakable: false)[
+```qml
+Switch {
+  id: wakeWordToggle
+  indicator: Rectangle {
+    radius: width / 2
+
+    Rectangle {
+      radius: width / 2
+      x: wakeWordToggle.checked ? parent.width - width - 4 : 4
+    }
+  }
+}
+```
+]
+
+Both the knob and the track feature black drop shadows.
+The QML snippet below defines the knob's drop shadow, while the track uses a similar shadow with larger parameters for a more diffuse effect:
+
+#block(breakable: false)[
+```qml
+layer.enabled: true
+layer.effect: DropShadow {
+    horizontalOffset: 0
+    verticalOffset: 2
+    radius: 4
+    samples: 8
+    color: Qt.rgba(0, 0, 0, 0.3)
+}
+```
+]
+
+The switch is connected to the backend using the following event trigger:
+
+#block(breakable: false)[
+```qml
+onToggled: {
+  wakeWordControl.enabled = checked
+  backend.setConfig("recording.wake_word_enabled=" + (checked ? "true" : "false"))
+}
+```
+]
+
+Similarly to the record button, the `setConfig()` function in the backend needs to be marked with `Q_INVOKABLE`:
+
+#block(breakable: false)[
+```qml
+Q_INVOKABLE void setConfig(const QString &element);
+```
+]
+
+To ensure the wake word toggle is set to the correct state when connecting to the server,
+the following function was created to update the state once the server sends the current configuration:
+
+#block(breakable: false)[
+```qml
+function updateEnabled(configLine) {
+    if (configLine.startsWith("recording.wake_word_enabled=")) {
+        let value = configLine.split("=")[1]
+        wakeWordControl.enabled = (value === "true")
+        wakeWordToggle.checked = wakeWordControl.enabled
+    }
+}
+```
+]
+
+The `configUpdateReceived` signal from the backend was connected to this function:
+
+#block(breakable: false)[
+```qml
+Component.onCompleted: {
+    backend.configUpdateReceived.connect(updateEnabled)
+}
+```
+]
+
+=== Settings Button
+The settings button is a simple QML `Button` using the `FontAwesome` gear icon:
+
+#block(breakable: false)[
+```qml
+Button {
+  contentItem: Text {
+      text: "\uf013"
+      font.family: "FontAwesome"
+  }
+}
+```
+]
+
+Inside the instantiation of the settings button in the main window, the `onClicked` signal was connected to visibility toggles:
+
+#block(breakable: false)[
+```qml
+onClicked: {
+    settingsScreen.visible = true
+    mainScreen.visible = false
+}
+```
+]
+
+=== Log View
+To display error messages from the backend, a TextArea inside a ScrollView was added to the main window.
+It is hidden by default to avoid taking up space when there is no content.
+A standalone component wasn’t created for this, as the component would be quite small,
+and the advantages of modularity wouldn’t justify the extra complexity in this case.
+
+#block(breakable: false)[
+```qml
+ScrollView {
+    id: outputScrollView
+    visible: false
+
+    TextArea {
+        id: output
+        readOnly: true
+
+        background: Rectangle {
+            color: "#1a1d21"
+            opacity: 0.8
+        }
+    }
+}
+```
+]
+
+The `onTextMessageReceived()` slot from the backend, which is connected to the `textMessageReceived` signal,
+was connected to the function below. This function updates the text in the log view and makes it visible.
+
+#block(breakable: false)[
+```qml
+function onTextMessageReceived(message) {
+    output.text += message + "\n"
+    outputScrollView.visible = true
+}
+```
+]
+
+=== Settings Menu
+The settings menu needed to have multiple categories each with:
+- Multiple Radio Buttons for implementation selection
+- Potentially some text inputs for things like base URL or language model selection
+
+=== Radio Buttons
+Radio Buttons themself are fairly straightforward, they use a QML `Radio Button`,
+with the outer circle and the selection dot defined as `Rectangle` components with radii of `width / 2`
+
+#block(breakable: false)[
+```qml
+RadioButton {
+  id: radioButton
+
+  indicator: Rectangle {
+    radius: width / 2
+
+    Rectangle {
+      radius: width / 2
+      visible: radioButton.checked
+    }
+  }
+}
+```
+]
+
+=== Radio Button Group
+Radio buttons by themselves are useless, they need to be part of a group to allow the user to select between multiple different options.
+Radio button groups are implemented using a `ButtonGroup` component and an event trigger that sends the selected configuration to the server
+immediately after the button is pressed, removing the need to press `Apply`:
+
+#block(breakable: false)[
+```qml
+ButtonGroup {
+  id: buttonGroup
+  onCheckedButtonChanged: {
+    if (checkedButton && !root.updatingFromServer) {
+        root.selectedValue = checkedButton.configValue
+        backend.setConfig(root.configKey + "=" + checkedButton.configValue)
+    }
+  }
+}
+```
+]
+
+The group also has a text label to describe which configuration this group modifies, it is placed above the radio buttons.
+Instantiating a radio button group requires configuring the following property variables:
+
+#block(breakable: false)[
+```qml
+property string title: "Settings Group"
+property var options: [
+  { text: "Option 1", value: "option1" },
+  { text: "Option 2", value: "option2" }
+]
+property string configKey: "setting.key"
+property string defaultValue: options.length > 0 ? options[0].value : ""
+```
+]
+
+For example, below is the text-to-speech configuration:
+
+#block(breakable: false)[
+```qml
+SettingsRadioButtonGroup {
+  title: "Text-to-speech"
+  configKey: "synthesis.implementation"
+  options: [
+    { text: "Local", value: "piper" },
+    { text: "ElevenLabs API", value: "elevenlabs" }
+  ]
+  defaultValue: "piper"
+}
+```
+]
+
+The `configKey` property is defined by the server, and is formatted as `table.key` from the TOML configuration file that the server uses.
+Not all fields from the server configuration have been included in the settings menu,
+such as `recording.porcupine_sensitiviy` or the entire weather configuration, as to not clutter the ui
+--- configuring the porcupine wake word detection sensitivity is unneccessary, as the default just works,
+and putting the weather configuration in the settings menu would not be productive, as the only reason someone would edit the weather config
+is if they are self-hosting the weather config, and in that case, they will be capable of editing the config and other users will not be confused
+by the weather API base url being a configurable field.
+If the user still wants to tinker with config fields that were not included in the settings menu,
+they can configure them manually in `$XDG_CONFIG_HOME/.config/voice/config.toml`.
+Below is the default configuration file that is copied to the above path on the first run of the server:
+#block(breakable: false)[
+```toml
+[geocoding]
+base_url = "https://nominatim.openstreetmap.org/"
+user_agent = "eagely's Voice Assistant/1.0"
+implementation = "nominatim"
+
+[llm]
+deepseek_base_url = "https://api.deepseek.com/"
+ollama_base_url = "http://localhost:11434/"
+deepseek_model = "deepseek-chat"
+ollama_model = "deepseek-r1:7b"
+implementation = "deepseek"
+
+[parsing]
+rasa_base_url = "http://localhost:5005/"
+implementation = "patternmatch"
+
+[recording]
+device_name = "pipewire"
+implementation = "local"
+remote_url = "ws://localhost:5555/"
+porcupine_sensitivity = 1
+wake_word_enabled = true
+wake_word = "ferris.ppn"
+
+[response]
+response_kind = "audio"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[transcription]
+local_model_path = "base.bin"
+local_use_gpu = true
+deepgram_base_url = "https://api.deepgram.com/v1/"
+implementation = "deepgram"
+
+[synthesis]
+elevenlabs_base_url = "wss://api.elevenlabs.io/"
+elevenlabs_model_id = "eleven_multilingual_v2"
+elevenlabs_voice_id = "21m00Tcm4TlvDq8ikWAM"
+piper_base_url = "http://localhost:5000/"
+piper_voice = "en_US-ljspeech-high.onnx"
+implementation = "elevenlabs"
+
+[weather]
+base_url = "https://api.openweathermap.org/data/3.0/onecall/"
+implementation = "openweathermap"
+```
+]
+
+=== Text Input
+As visible in the default configuration above, some fields clearly require textual configuration and not just radio button selection.
+A text input field was created using QML `TextInput` and the following event trigger:
+
+#block(breakable: false)[
+```qml
+onTextEdited: {
+    backend.setConfig(root.configKey + "=" + text)
+}
+```
+]
+
+Notably, the event is called `onTextEdited`, and it only triggers when the user actively types something in,
+not just when the text is programmatically changed — which would trigger the `onTextChanged` event.
+
+This distinction is important because the server echoes any configuration updates to all connected clients,
+and each client's settings menu gets updated accordingly. If `onTextChanged` were used instead, it could result in an infinite loop:
+
+- The client sends an update to the server.  
+- The server receives and broadcasts it back to all clients.  
+- The client sees the text change and sends it again, repeating the cycle.
+
+While this loop might not occur if the echoed configuration is identical to what the client already has,
+issues arise if the server modifies the value — for example, by trimming whitespace or removing a trailing `/` from a URL.
+In such cases, the text input would detect a change, triggering another send, leading to the feedback loop.
+
