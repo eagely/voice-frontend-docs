@@ -1,81 +1,48 @@
 #set heading(numbering: "1.1")
 
 = Introduction and System Overview
-
-This project implements a frontend application designed primarily for Raspberry Pi hardware,
+This project aims to implement a frontend application for a voice assistant designed primarily for Raspberry Pi hardware,
 while maintaining compatibility with other Linux/Unix-like systems.
-Developed as an extension to an existing voice assistant diploma thesis,
-it focuses on providing a user-friendly interface for audio capture and processing through backend services.
+It is developed in parallel to a diploma thesis which encompasses the backend of the voice assistant,
+as well as a hardware setup for it.
 
 == Project Scope
-The project scope encompassed the following objectives:
-- Implementation of efficient backend communication, with a target response latency of 1 second
-- Development of response playback functionality, offering both textual and audio output modalities
-- Integration of multiple input methodologies, including text input, push-to-talk, and voice activation modes
-
+The following are the main objectives of the frontend:
+- Audio playback of responses from the server
+- The ability to start recording using either a button or a wake word
+- A user interface for configuration
+- Efficient communication between client and server, with a target response time of under 1 second
 
 == Background and Motivation
 Voice assistants have experienced steady adoption growth,
-though they were often regarded as supplementary rather than essential tools.
-This project sought to address this limitation
-by developing a voice assistant frontend solution that could enhance users' workflows
+though they are often regarded as supplementary rather than essential tools.
+This project seeks to address this limitation
+by developing a voice assistant solution that could enhance users' workflows
 while maintaining minimal intrusiveness.
-The implementation focused on extending traditional voice assistant capabilities
-with advanced features such as workspace management and speech-to-text integration.
+The implementation focuses on extending traditional voice assistant capabilities
+with advanced features such as workspace management and unrestricted configuration.
 
 == Technical Challenges
 The development process was expected to encounter several technical challenges, including but not limited to:
-- *Voice Activation:* Implementing an effective voice activation system necessitates continuous listening capabilities. This can be achieved either through a wake-word detection mechanism or an advanced language model that can discern commands from regular speech. Both approaches require careful consideration of computational efficiency and responsiveness.
-- *Security:* The ability to execute arbitrary commands poses a significant security risk. It is imperative to implement strict access controls and validation mechanisms to prevent unauthorized actions and protect the user from potential threats posed by malicious actors.
-- *User Experience:* Ensuring a seamless and intuitive user experience is vital for the adoption of the voice assistant. This includes minimizing response times, providing clear feedback, and designing an accessible and user-friendly interface.
-- *Low Latency:* Ensuring efficient communication with the backend is essential to achieve the goal of response delays no longer than 1 second on a Raspberry Pi. While most of the heavy lifting is done by the backend, communication protocols still need to be optimized to ensure low latency.
+- Voice Activation: Implementing an effective voice activation solution requires a powerful wake word detection engine that works flawlessly.
+- Security: Workspace Management may involve opening applications, in which case prevention of arbitrary code execution is a concern.
+- User Experience: This includes minimal response times, clear feedback, and an accessible and visually appealing interface.
+- Low Latency: Ensuring a response time of under 1 second requires careful design of communication, ensuring that large data packets are transferred
+in streams and audio is played immediately upon availability without having to wait for all the data to arrive.
 
 == Choice of Framework
-Several front-end frameworks were considered initially. These include:
+Several frontend frameworks were considered initially. These include:
 - Vue.js#footnote[Vue.js web frontend framework @vuejs]
 - Godot#footnote[Godot game engine @godot]
 - Qt#footnote[Qt framework @qt]
 - SDL#footnote[Simple DirectMedia Layer library @sdl]
-- Low-Level Graphics#footnote[Adafruit TFTLCT library @adafruit-tftlcd]
+- Low-Level Graphics#footnote[Adafruit TFTLCD library @adafruit-tftlcd]
 
-Initially, `Vue.js` and `Godot` were considered due to prior experience with these frameworks. However, given that the voice assistant frontend would run on a Raspberry Pi where performance is crucial for ensuring a smooth user experience, these options were ruled out. While low-level frameworks like `SDL` and `Embedded Graphics` were available, their steep learning curve and limited industry adoption made them impractical choices. Ultimately, `Qt` was selected for its robust performance, extensive industry usage, comprehensive documentation, and the fact that it's the framework that is used by my desktop environment (KDE Plasma), so it would have seamless integration with my personal system.
-
-
-== System Architecture
-The complete voice assistant consists of two parallel projects: this Qt-based frontend and a Rust backend being developed as an ongoing diploma thesis. The frontend serves as the user interface layer, providing efficient access to the backend's voice processing capabilities.
-
-#figure(
-  image("../assets/stackchart.png", width: 100%),
-  caption: [System architecture showing the Qt frontend (current project scope) and the Rust backend components (parallel diploma thesis). The processing pipeline flows from the frontend through various backend stages, each offering multiple implementation options.]
-) <system-architecture>
-
-=== Frontend
-The Qt-based frontend layer handles:
-- User interface and interaction
-- Audio recording control
-- Communication with backend
-- Result presentation
-
-=== Backend
-The backend system, currently under development, comprises several processing stages:
-- *Recording Stage:* Implements both local and remote recording capabilities:
-  - Local Recorder for direct hardware access
-  - Remote Recorder for distributed setups
-- *Transcription Stage:* Provides multiple transcription options:
-  - Local Whisper for offline processing
-  - Cloudflare Whisper for edge computing
-  - OpenAI Whisper for cloud-based processing
-- *Processing Stage:* Implements various NLP options:
-  - Local NLP for offline processing
-  - Remote NLP for distributed processing
-  - Cloudflare NLP for edge computing
-  - OpenAI NLP for advanced language models
-  - Regex Matcher for simple pattern matching
-- *Output Stage:* Handles the final processing results
-
-The modular architecture enables flexible deployment configurations. Users can choose between local processing for privacy-conscious applications or cloud-based processing for enhanced capabilities, with the frontend adapting seamlessly to either choice.
-
-
+Initially, `Vue.js` and `Godot` were considered due to prior experience with them.
+However, given that the voice assistant would run on a Raspberry Pi
+where performance is crucial for ensuring a smooth user experience,these options were ruled out.
+While something akin to `SDL` or more low-level graphics were an option, their steep learning curve made them impractical choices.
+Ultimately, `Qt` was selected for its robust performance, extensive industry adoption, and comprehensive documentation.
 
 == Qt Framework
 The Qt framework is a comprehensive toolkit designed for creating cross-platform applications
